@@ -1,0 +1,1 @@
+Aug 18 2024 - orbit controls isn't working how I want it to, or rather orbit-beholder. I gotta try making a 3D cursor like.... lerp to the raycast position, rather than make a parent object around the head.

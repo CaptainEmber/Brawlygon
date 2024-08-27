@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Integrated Experience — Networked-Aframe</title>
+    <meta name="description" content="Brawlygon" />
+    <link rel="stylesheet" href="styles.css" />
+
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.5.0/socket.io.slim.js"></script>
+    <script src="/easyrtc/easyrtc.js"></script>
+    <script src="https://unpkg.com/networked-aframe@^0.12.0/dist/networked-aframe.min.js"></script>
+    <script src="https://unpkg.com/aframe-orbit-controls@1.3.2/dist/aframe-orbit-controls.min.js"></script>
+    <script src="https://unpkg.com/aframe-fps-look-controls-component/dist/aframe-fps-look-controls-component.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/aframe-randomizer-components@3.0.2/dist/aframe-randomizer-components.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/aframe-environment-component@1.3.7/dist/aframe-environment-component.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.4.0/dist/aframe-extras.min.js"></script>
+    <script src="/js/spawn-in-circle.component.js"></script>
+    <script src="/js/color-changer.component.js"></script>
+    <script src="/js/spawner-persistent.component.js"></script>
+    <script src="/js/persistent-p2p.component.js"></script>
+    <script src="/js/dungeonspawner.js"></script>
+    <script src="/js/beholder-controls.js"></script>
+    <script src="/js/token-interaction.js"></script>
+    <script src="/js/token-selector.js"></script>
+    <link rel="stylesheet" type="text/css" href="/css/style.css" />
+
+    <style>
+      #chatPanel .messages {
+        display: flex;
+        flex-direction: column-reverse;
+        overflow-y: auto;
+        height: 200px; /* Adjust as needed */
+      }
+    </style>
+
+    <script>
+      NAF.schemas.getComponentsOriginal = NAF.schemas.getComponents;
+      NAF.schemas.getComponents = (template) => {
+        if (!NAF.schemas.hasTemplate("#avatar-template")) {
+          NAF.schemas.add({
+            template: "#avatar-template",
+            components: [
+              "position",
+              "rotation",
+              {
+                selector: ".head",
+                component: "material",
+                property: "color",
+              },
+              "player-info",
+            ],
+          });
+        }
+        if (!NAF.schemas.hasTemplate("#token-template")) {
+          NAF.schemas.add({
+            template: "#token-template",
+            components: [
+              "position",
+              "rotation",
+              "scale",
+              "gltf-model",
+              {
+                component: "material",
+              },
+              "token-interaction",
+            ],
+          });
+        }
+        const components = NAF.schemas.getComponentsOriginal(template);
+        return components;
+      };
+
+      document.addEventListener("DOMContentLoaded", () => {
+        const form = document.querySelector("#form");
+        const btn = document.querySelector("#send-btn");
+        const input = document.querySelector("#input");
+        const log = document.querySelector("#chatPanel .messages");
+        const usernameInput = document.querySelector("#username-overlay");
+
+        form.addEventListener("submit", (evt) => {
+          evt.preventDefault();
+          if (input.value === "") {
+            alert("say something jamie");
+            return;
+          }
+
+          const username = usernameInput.value;
+          const color = document
+            .getElementById("player")
+            .getAttribute("player-info").color;
+          const message = `<div><span style="color: ${color}">${username}:</span> ${input.value}</div>`;
+          log.insertAdjacentHTML('afterbegin', message);
+
+          NAF.connection.broadcastDataGuaranteed("chat", {
+            txt: input.value,
+            name: username,
+            color: color,
+          });
+          input.value = "";
+        });
+
+        NAF.connection.subscribeToDataChannel(
+          "chat",
+          (senderId, dataType, data, targetId) => {
+            const message = `<div><span style="color: ${data.color}">${data.name}:</span> ${data.txt}</div>`;
+            log.insertAdjacentHTML('afterbegin', message);
+          }
+        );
+      });
+
+      let micEnabled = true;
+      const micBtnEle = document.getElementById("mic-btn");
+
+      function onConnect() {
+        console.log("onConnect", new Date());
+
+        micBtnEle.addEventListener("click", function () {
+          NAF.connection.adapter.enableMicrophone(!micEnabled);
+          micEnabled = !micEnabled;
+          micBtnEle.textContent = micEnabled ? "Mute Mic" : "Unmute Mic";
+        });
+      }
+
+      window.ntExample = {
+        randomColor: () => {
+          return (
+            "#" +
+            new THREE.Color(
+              Math.random(),
+              Math.random(),
+              Math.random()
+            ).getHexString()
+          );
+        },
+      };
+
+      AFRAME.registerComponent("player-info", {
+        schema: {
+          name: {
+            type: "string",
+            default: "user-" + Math.round(Math.random() * 10000),
+          },
+          color: {
+            type: "color",
+            default: window.ntExample.randomColor(),
+          },
+        },
+
+        init: function () {
+          this.head = this.el.querySelector(".head");
+          this.nametag = this.el.querySelector(".nametag");
+
+          this.ownedByLocalUser = this.el.id === "player";
+          if (this.ownedByLocalUser) {
+            this.nametagInput = document.getElementById("username-overlay");
+            this.nametagInput.value = this.data.name;
+
+            document.querySelector("#color-changer").style.backgroundColor =
+              this.data.color;
+            document.querySelector("#color-changer").style.color =
+              this.data.color;
+          }
+        },
+
+        update: function () {
+          if (this.head)
+            this.head.setAttribute("material", "color", this.data.color);
+          if (this.nametag) this.nametag.setAttribute("value", this.data.name);
+        },
+      });
+    </script>
+  </head>
+  <body>
+    <a-scene
+      background="color: grey"
+      persistent-p2p
+      networked-scene="
+        room: integrated-experience;
+        debug: true;
+        adapter: wseasyrtc;
+        audio: true;"
+      renderer="physicallyCorrectLights: true;"
+      cursor="rayOrigin: mouse"
+      raycaster="objects:.raycastable"
+    >
+      <a-assets>
+        <template id="avatar-template">
+          <a-entity class="avatar" player-info>
+            <a-entity
+              class="head"
+              networked-audio-source
+              gltf-model="#beholderModel"
+              scale=".25 .25 .25"
+              rotation="0 180 0"
+              position="0 -.5 0"
+            ></a-entity>
+            <a-text
+              class="nametag"
+              value="?"
+              rotation="0 180 0"
+              position="0 .85 0"
+              side="double"
+              align="center"
+              scale=".5 .5 .5"
+              geometry="primitive: plane; width: auto; height: auto; side: double"
+              material="color: #eee; opacity: .5"
+            ></a-text>
+          </a-entity>
+        </template>
+
+        <template id="token-template">
+          <a-entity class="token">
+            <a-entity
+              class="NPCtoken"
+              gltf-model="#goblinModel"
+              token-interaction
+              scale="1 1 1"
+              rotation="0 0 0"
+              position="0 0 0"
+            ></a-entity>
+          </a-entity>
+        </template>
+
+        <a-asset-item
+          id="beholderModel"
+          src="https://cdn.glitch.global/86fd29b1-4d6c-4dbb-b735-00c644907515/beholder.glb?v=1720039126157"
+        ></a-asset-item>
+        <a-asset-item
+          id="goblinModel"
+          src="https://cdn.glitch.global/86fd29b1-4d6c-4dbb-b735-00c644907515/GoblinToken3.glb?v=1720442465141"
+        ></a-asset-item>
+
+        <a-asset-item
+          id="wall01"
+          src="https://cdn.glitch.global/86fd29b1-4d6c-4dbb-b735-00c644907515/wallBlock.glb?v=1719421361207"
+        ></a-asset-item>
+        <a-asset-item
+          id="floor01"
+          src="https://cdn.glitch.global/86fd29b1-4d6c-4dbb-b735-00c644907515/road.glb?v=1719421360827"
+        ></a-asset-item>
+        <a-asset-item
+          id="floor02"
+          src="https://cdn.glitch.global/86fd29b1-4d6c-4dbb-b735-00c644907515/planks.glb?v=1719421360443"
+        ></a-asset-item>
+        <a-asset-item
+          id="column01"
+          src="https://cdn.glitch.global/86fd29b1-4d6c-4dbb-b735-00c644907515/pillarStone.glb?v=1719421360004"
+        ></a-asset-item>
+        <a-asset-item
+          id="rotunda01"
+          src="https://cdn.glitch.global/86fd29b1-4d6c-4dbb-b735-00c644907515/rotunda8.glb?v=1720202814433"
+        ></a-asset-item>
+        <a-asset-item
+          id="rotunda02"
+          src="https://cdn.glitch.global/86fd29b1-4d6c-4dbb-b735-00c644907515/rotunda16.glb?v=1720202815213"
+        ></a-asset-item>
+        <a-asset-item
+          id="door01"
+          src="https://cdn.glitch.global/86fd29b1-4d6c-4dbb-b735-00c644907515/wallDoor.glb?v=1719421497459"
+        ></a-asset-item>
+        <a-asset-item
+          id="door02"
+          src="https://cdn.glitch.global/86fd29b1-4d6c-4dbb-b735-00c644907515/wallDoorwayRound.glb?v=1719421498070"
+        ></a-asset-item>
+      </a-assets>
+
+      <!-- Our Player CODE TIMEOUT: spawn-in-circle="radius:3" -->
+
+      <a-entity
+        id="player"
+        camera
+        networked="template:#avatar-template;attachTemplateToLocal:false;"
+        position="0 2 0"
+        spawner-persistent="template:#token-template"
+        look-controls="enabled: true" 
+        beholder-controls
+        raycaster="interval: 10; far: 100; showline: true"
+      >
+      </a-entity>
+      
+      <!-- THA DUNGEON -->
+      <a-entity id="dungeon" dungeon-generator></a-entity>
+
+      <!-- THA BAHTULGRIDH --> 
+      <a-grid
+        position=".5 0 .5"
+        material="alphaTest: 0.9; depthTest: true; blending: normal; src: https://cdn.glitch.global/3249eb5b-d053-482d-9edf-98e70608d9ad/output-onlinepngtools.png?v=1719102850217"
+      ></a-grid>
+    </a-scene>
+
+    <!--  UI AND BUTTONS AND THINGS -->
+
+    <div id="buttons">
+      <button id="helpButton">❓</button>
+      <button id="optionsButton">⚙️</button>
+      <button id="tokenButton">🧌</button>
+      <button id="chatButton">💬</button>
+    </div>
+
+    <div id="panel">
+      <div id="helpPanel">
+        <h2>Welcome to 3DnD!</h2>
+        <p>An open, creative, VTT.</p>
+        <ul>
+          <li>❓ help! (this)</li>
+          <li>⚙️ change name and color</li>
+          <li>🧌 spawn tokens</li>
+          <li>💬 to chat</li>
+        </ul>
+        <h3>Controls:</h3>
+        <ul>
+          <li>WASD or Arrow Keys: Move</li>
+          <li>Mouse Look or Touch Drag: Look Around</li>
+          <li>Click + Drag (Desktop): Grab Objects</li>
+        </ul>
+        <p>
+          Remix your own here:
+          <a href="https://glitch.com/edit/#!/remix/your-project-name-here"
+            ><img
+              alt="Remix on Glitch"
+              src="https://cdn.gomix.com/f3620a78-0ad3-4f81-a271-c8a4faa20f86%2Fremix-button.svg"
+          /></a>
+        </p>
+      </div>
+
+      <div id="optionsPanel" style="display: none;">
+        Color and Name
+        <button
+          id="color-changer"
+          style="z-index: 100"
+          onclick="let newColor = window.ntExample.randomColor();
+                 document.getElementById('player').setAttribute('player-info', 'color', newColor); 
+                 document.querySelector('#color-changer').style.backgroundColor = newColor;
+                 document.querySelector('#color-changer').style.color = newColor;
+        "
+        >
+          ■
+        </button>
+        <input
+          id="username-overlay"
+          style="z-index: 100"
+          oninput="document.getElementById('player').setAttribute('player-info', 'name', this.value)"
+        />
+        <div class="actions">
+          <button id="mic-btn" type="button" class="button" style="z-index: 100">
+            Mute Mic
+          </button>
+        </div>
+      </div>
+
+      <div id="tokenPanel" style="display: none;">
+        <h2>Select Token</h2>
+      </div>
+
+      <div id="chatPanel" style="display: none;">
+        <ul>
+          <div class="chat">
+            <form id="form">
+              <div style="display: flex">
+                <input type="text" name="" autocomplete="off" id="input" />
+                <button id="send-btn">Send</button>
+              </div>
+            </form>
+            <div class="messages"></div>
+          </div>
+        </ul>
+      </div>
+    </div>
+
+    <script>
+      const buttons = document.querySelectorAll("#buttons button");
+      const panels = document.querySelectorAll("#panel > div");
+      let lastClickedButton = null;
+
+      buttons.forEach((button) => {
+        button.addEventListener("click", () => {
+          const panelId = button.id.replace("Button", "Panel");
+          const panel = document.getElementById(panelId);
+
+          if (lastClickedButton === button) {
+            panel.style.display = "none";
+            lastClickedButton = null;
+          } else {
+            panels.forEach((p) => (p.style.display = "none"));
+            panel.style.display = "block";
+            lastClickedButton = button;
+          }
+        });
+      });
+
+      function onConnect() {
+        console.log("onConnect", new Date());
+      }
+    </script>
+  </body>
+</html>
