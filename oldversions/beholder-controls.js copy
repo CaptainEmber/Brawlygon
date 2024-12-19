@@ -18,7 +18,7 @@ AFRAME.registerComponent("beholder-controls", {
   init: function () {
     // To keep track of the pressed keys.
     this.keys = {};
-    this.easing = 1.1;
+    this.easing = 1.2;
     this.velocity = new THREE.Vector3();
 
     // Bind methods and add event listeners.
@@ -46,7 +46,7 @@ AFRAME.registerComponent("beholder-controls", {
       return;
     }
     // Update velocity.
-    delta = delta / 1000;
+    delta = delta / 2000;
     this.updateVelocity(delta);
 
     if (!velocity[data.adAxis] && !velocity[data.wsAxis]) {

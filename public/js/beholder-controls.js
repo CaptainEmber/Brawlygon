@@ -29,6 +29,16 @@ AFRAME.registerComponent("beholder-controls", {
     this.onKeyUp = this.onKeyUp.bind(this);
     this.onVisibilityChange = this.onVisibilityChange.bind(this);
     this.attachVisibilityEventListeners();
+
+    // New state for token manipulation
+    this.tokenType = null;
+    this.initialTokenPosition = null;
+
+    // Event listeners for mouse and touch events
+    this.el.sceneEl.addEventListener("mousedown", this.onMouseDown.bind(this));
+    this.el.sceneEl.addEventListener("mouseup", this.onMouseUp.bind(this));
+    this.el.sceneEl.addEventListener("touchstart", this.onTouchStart.bind(this));
+    this.el.sceneEl.addEventListener("touchend", this.onTouchEnd.bind(this));
   },
 
   tick: function (time, delta) {
@@ -36,7 +46,7 @@ AFRAME.registerComponent("beholder-controls", {
     var el = this.el;
     var velocity = this.velocity;
 
-    //Check to see if anything is pressed or if there's any velocity still going
+    // Check to see if anything is pressed or if there's any velocity still going
     if (
       this.isEmptyObject(this.keys) &&
       !velocity[data.adAxis] &&
@@ -259,30 +269,45 @@ AFRAME.registerComponent("beholder-controls", {
     code = event.code || KEYCODE_TO_CODE[event.keyCode];
     delete this.keys[code];
   },
- 
+
   shouldCaptureKeyEvent: function (event) {
     if (event.metaKey) {
       return false;
     }
     return document.activeElement === document.body;
   },
-  
-  handleButtonPress: function(buttonId, isPressed) {
-  const key = buttonId; // Use buttonId directly as the key code
 
-  if (isPressed) {
-    this.keys[key] = true;
-  } else {
-    delete this.keys[key];
-  }
-},
+  handleButtonPress: function (buttonId, isPressed) {
+    const key = buttonId; // Use buttonId directly as the key code
 
-  
+    if (isPressed) {
+      this.keys[key] = true;
+    } else {
+      delete this.keys[key];
+    }
+  },
+
   isEmptyObject: function (keys) {
     for (var key in keys) {
       return false;
     }
     return true;
+  },
+
+  onMouseDown: function (event) {
+    this.handlePointerDown(event);
+  },
+
+  onMouseUp: function (event) {
+    this.handlePointerUp(event);
+  },
+
+  onTouchStart: function (event) {
+    this.handlePointerDown(event.touches[0]);
+  },
+
+  onTouchEnd: function (event) {
+    this.handlePointerUp(event.changedTouches[0]);
   },
 });
 

@@ -5,12 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const log = document.querySelector("#chatPanel .messages");
   const usernameInput = document.querySelector("#username-overlay");
   const tokenList = document.getElementById("tokenList");
-  const possessButton = document.getElementById("possessButton");
-  const unpossessButton = document.getElementById("unpossessButton");
-  const scaleUpButton = document.getElementById("scaleUpButton");
-  const scaleDownButton = document.getElementById("scaleDownButton");
   const deleteButton = document.getElementById("deleteButton");
-  let possessedToken = null;
 
   form.addEventListener("submit", (evt) => {
     evt.preventDefault();
@@ -91,7 +86,6 @@ document.addEventListener("DOMContentLoaded", () => {
     console.log("onConnect", new Date());
   }
 
-  // Token possession logic
   function updateTokenList() {
     tokenList.innerHTML = "";
     const tokens = document.querySelectorAll(".token");
@@ -103,7 +97,6 @@ document.addEventListener("DOMContentLoaded", () => {
       tokenList.appendChild(option);
     });
   }
-
 
   // Update token list initially and whenever a new token is added
   updateTokenList();

@@ -10,23 +10,21 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.5.0/socket.io.slim.js"></script>
     <script src="/easyrtc/easyrtc.js"></script>
     <script src="https://unpkg.com/networked-aframe@^0.12.0/dist/networked-aframe.min.js"></script>
-    <script src="https://unpkg.com/aframe-orbit-controls@1.3.2/dist/aframe-orbit-controls.min.js"></script>
-    <script src="https://unpkg.com/aframe-fps-look-controls-component/dist/aframe-fps-look-controls-component.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/aframe-randomizer-components@3.0.2/dist/aframe-randomizer-components.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/aframe-environment-component@1.3.7/dist/aframe-environment-component.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.4.0/dist/aframe-extras.min.js"></script>
     <script src="/js/spawn-in-circle.component.js"></script>
     <script src="/js/color-changer.component.js"></script>
+    <script src="/js/color-changer-networked.component.js"></script>
     <script src="/js/spawner-persistent.component.js"></script>
     <script src="/js/persistent-p2p.component.js"></script>
     <script src="/js/dungeonspawner.js"></script>
     <script src="/js/beholder-controls.js"></script>
     <script src="/js/token-selector.js"></script>
     <script src="/js/button-logic.js"></script>
- 
-    <link rel="stylesheet" type="text/css" href="/css/style.css" />
     
-    <!-- Things that are replicated, and what to track! -->
+   
+    <!--  Things that are replicated, and what to track! -->
     <script>
       NAF.schemas.getComponentsOriginal = NAF.schemas.getComponents;
       NAF.schemas.getComponents = (template) => {
@@ -56,7 +54,6 @@
                 {
                   component: "material",
                 },
-                "held",
               ],
             });
           }
@@ -64,19 +61,6 @@
         return components;
       };
     
-      let micEnabled = true;
-      const micBtnEle = document.getElementById("mic-btn");
-
-      function onConnect() {
-        console.log("onConnect", new Date());
-
-        micBtnEle.addEventListener("click", function () {
-          NAF.connection.adapter.enableMicrophone(!micEnabled);
-          micEnabled = !micEnabled;
-          micBtnEle.textContent = micEnabled ? "Mute Mic" : "Unmute Mic";
-        });
-      }
-
       window.ntExample = {
         randomColor: () => {
           return (
@@ -118,14 +102,18 @@ AFRAME.registerComponent("player-info", {
     }
   },
 
-  update: function () {
-    if (this.head)
-      this.head.setAttribute("material", "color", this.data.color);
-    if (this.nametag) this.nametag.setAttribute("value", this.data.name);
-  },
-});
-    </script>
+    update: function () {
+      if (this.head)
+        this.head.setAttribute("material", "color", this.data.color);
+      if (this.nametag) this.nametag.setAttribute("value", this.data.name);
+    },
+  });
+
+  </script>
   </head>
+  
+  <!-- This is the body! -->
+  
   <body>
     <a-scene
       background="color: grey"
@@ -147,8 +135,9 @@ AFRAME.registerComponent("player-info", {
               networked-audio-source
               gltf-model="#beholderModel"
               scale=".25 .25 .25"
-              rotation="0 180 0"
+              rotation="0 0 0"
               position="0 -.5 0"
+              material="color:#FFFFFF"
             ></a-entity>
             <a-text
               class="nametag"
@@ -167,18 +156,20 @@ AFRAME.registerComponent("player-info", {
         <template id="token-template">
           <a-entity class="token" token-interaction>
             <a-entity
-              class="NPCtoken"
+              class="token"
               gltf-model="#questionmark"
               scale="1 1 1"
               rotation="0 0 0"
               position="0 0 0"
+              grabbable
+              click-drag
             ></a-entity>
           </a-entity>
         </template>
 
         <a-asset-item
           id="beholderModel"
-          src="https://cdn.glitch.global/86fd29b1-4d6c-4dbb-b735-00c644907515/beholder.glb?v=1720039126157"
+          src="https://cdn.glitch.global/86fd29b1-4d6c-4dbb-b735-00c644907515/beholderedit_v2.glb?v=1724775631179"
         ></a-asset-item>
         <a-asset-item
           id="goblinModel"
@@ -187,6 +178,10 @@ AFRAME.registerComponent("player-info", {
         <a-asset-item
           id="questionmark"
           src="https://cdn.glitch.global/86fd29b1-4d6c-4dbb-b735-00c644907515/questionmark.glb?v=1724628265718"
+        ></a-asset-item>
+        <a-asset-item
+          id="walleb"
+          src="https://cdn.glitch.global/86fd29b1-4d6c-4dbb-b735-00c644907515/wall_eb.glb?v=1725048053894"
         ></a-asset-item>
 
         <a-asset-item
@@ -233,14 +228,18 @@ AFRAME.registerComponent("player-info", {
         spawner-persistent="template:#token-template"
         look-controls="enabled: true" 
         beholder-controls
-        raycaster="interval: 10; far: 100; showline: true"
+        raycaster="far: 1000; showLine: false"
+        token-interaction
       >
         <a-entity id="cursor"
             cursor
             position="0 0 -.1"
             geometry="primitive: ring; radiusInner: 0.001; radiusOuter: 0.002"
-            material="color: black; shader: flat">
+            material="color: black; shader: flat; opacity: .5"
+            hide-on-enter-vr>
         </a-entity>
+        <a-entity id="leftHand" hand-tracking-grab-controls="hand: left;"></a-entity>
+        <a-entity id="rightHand" hand-tracking-grab-controls="hand: right;"></a-entity>
       </a-entity>
 
       <!-- Color changing clicky test box!-->
@@ -250,6 +249,14 @@ AFRAME.registerComponent("player-info", {
         opacity="0.8"
         depth="1"
         color-changer
+      ></a-box>
+      
+      <a-box
+        position="0 5 -5"
+        rotation="0 45 45"
+        opacity="0.8"
+        depth="1"
+        color-changer-networked
       ></a-box>
       
       <!-- THA DUNGEON -->
@@ -326,7 +333,7 @@ AFRAME.registerComponent("player-info", {
 
       <div id="tokenPanel" style="display: none;">
         <h2>Select Token</h2>
-        <select id="tokenList" name="Tokens" size="6">
+        <select id="tokenList" name="Tokens" size="6" style="width: 300px">
           <!-- This is where the tokens <option> tags go -->
         </select>
         <button id="scaleUpButton">Bigger</button>
