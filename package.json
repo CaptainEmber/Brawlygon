@@ -1,0 +1,22 @@
+{
+  "name": "brawlygon-spatial-wiki-vtt",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@react-three/drei": "^9.122.0",
+    "@react-three/fiber": "^8.17.10",
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^5.4.11",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "three": "^0.171.0",
+    "zustand": "^5.0.2"
+  },
+  "devDependencies": {}
+}
