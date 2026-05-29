@@ -9,8 +9,11 @@
   "scripts": {
     "start": "node server.js"
   },
-  "dependencies": {
-    "networked-aframe": "^0.12.3"
+"dependencies": {
+    "networked-aframe": "^0.12.3",
+    "express": "^4.19.2",
+    "socket.io": "^2.5.0",
+    "open-easyrtc": "^2.0.20"
   },
   "engines": {
     "node": ">=16"
